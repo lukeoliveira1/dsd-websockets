@@ -34,7 +34,29 @@ async function main() {
 
   io.on("connection", async (socket) => {
     io.emit("send message", "* connected *");
-    console.log("a user connected");
+    console.log("A user connected");
+
+    socket.on("send message", async (msg, clientOffset, callback) => {
+      let result;
+      try {
+        result = await db.run(
+          "INSERT INTO messages (content, client_offset) VALUES (?, ?)",
+          msg,
+          clientOffset
+        );
+      } catch (e) {
+        if (e.errno === 19 /* SQLITE_CONSTRAINT */) {
+          // the message was already inserted, so we notify the client
+          callback();
+        } else {
+          // nothing to do, just let the client retry
+        }
+        return;
+      }
+      io.emit("send message", msg, result.lastID);
+      //and finally...
+      callback();
+    });
 
     if (!socket.recovered) {
       // if the connection state recovery was not sucessful
@@ -47,23 +69,13 @@ async function main() {
           }
         );
       } catch (error) {
-        console.log("Error: ", error);
+        return;
       }
     }
 
-    socket.on("send message", async (msg) => {
-      let result;
-      try {
-        result = await db.run("INSERT INTO messages (content) VALUES (?)", msg);
-      } catch (error) {
-        console.log("Error: ", error);
-      }
-      io.emit("send message", msg, result.lastID);
-    });
-
     socket.on("disconnect", () => {
       io.emit("send message", "* disconnected *");
-      console.log("user disconnected");
+      console.log("A user disconnected");
     });
   });
 
