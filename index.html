@@ -48,6 +48,8 @@
           list-style-type: none;
           margin: 0;
           padding: 0;
+          overflow-y: auto;
+          max-height: calc(100vh - 3rem);
         }
         #messages > li {
           padding: 0.5rem 1rem;
@@ -65,7 +67,11 @@
     </form>
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        const socket = io();
+        const socket = io({
+          auth: {
+            serverOffset: 0
+          }
+        });
 
         const form = document.getElementById('form');
         const messageInput = document.getElementById('input');
@@ -76,13 +82,17 @@
             socket.emit("send message", messageInput.value);
         })
 
-        socket.on("send message", (msg) => {
+        socket.on("send message", (msg, serverOffset) => {
             console.log("olha a mensagem", msg);
             const message = document.createElement("li");
             message.innerText = msg;
 
             ul.append(message);
             messageInput.value = "";
+
+            socket.auth.serverOffset = serverOffset;
+
+            ul.scrollTop = ul.scrollHeight;
         })
     </script>
 </body>
